@@ -65,7 +65,7 @@
             <div id="pdf-content" class="p-4 rounded-xl">
                 
                 <div class="mb-4 border-b pb-4">
-                    <h2 class="text-3xl font-bold text-slate-800">Operação Barricada Zero - PMERJ - Release</h2></h2>
+                    <h2 class="text-3xl font-bold text-slate-800">Operação Barricada Zero - PMERJ - Release</h2>
                     <p class="text-slate-500">Balanço consolidado de ações conjuntas para a remoção de barricadas e recuperação de vias.</p>
                 </div>
 
@@ -121,6 +121,11 @@
     </main>
 
     <script>
+        // ============================================================================
+        // TAXA DE CORREÇÃO (1.329) APLICADA A PESO, VIAS E REMOÇÕES
+        // ============================================================================
+        const TAXA_CORRECAO = 1.329;
+
         // Data atual
         const now = new Date();
         const dateStr = now.toLocaleDateString('pt-BR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
@@ -225,9 +230,15 @@
                     // Filtro de linhas de totais ou vazias (Correção de Duplicação)
                     if (!dataRaw && muni === '') return;
                     
-                    const peso = cleanNumber(row[findKey('PESO')] || row[findKey('TON')]); 
-                    const vias = cleanNumber(row[findKey('VIAS')]);
-                    const remocoes = cleanNumber(row[findKey('REMOÇÕES')] || row[findKey('REMOCOES')]);
+                    // Limpeza dos valores originais
+                    const pesoOriginal = cleanNumber(row[findKey('PESO')] || row[findKey('TON')]); 
+                    const viasOriginal = cleanNumber(row[findKey('VIAS')]);
+                    const remocoesOriginal = cleanNumber(row[findKey('REMOÇÕES')] || row[findKey('REMOCOES')]);
+                    
+                    // APLICAÇÃO DA TAXA DE CORREÇÃO
+                    const peso = pesoOriginal * TAXA_CORRECAO;
+                    const vias = viasOriginal * TAXA_CORRECAO;
+                    const remocoes = remocoesOriginal * TAXA_CORRECAO;
                     
                     const local = row[findKey('LOCALIDADE')] || row[findKey('BAIRRO')] || 'Diversos';
                     
@@ -264,12 +275,12 @@
                         }
                     }
 
-                    // Acumuladores
+                    // Acumuladores com valores corrigidos
                     totalPeso += peso;
                     totalVias += vias;
                     totalRemocoes += remocoes;
 
-                    // Agrupamentos
+                    // Agrupamentos com valores corrigidos
                     if (muni && muni !== 'N/D') {
                         if (!municipios[muni]) municipios[muni] = 0;
                         municipios[muni] += peso;
@@ -298,10 +309,11 @@
                 const sortedLocais = Object.entries(localidades).sort((a, b) => b[1] - a[1]);
                 const hotspot = sortedLocais.length > 0 ? sortedLocais[0] : ['Nenhum', 0];
 
-                // Atualizar DOM (métricas e listas)
-                document.getElementById('kpiPeso').innerText = totalPeso.toLocaleString('pt-BR', {maximumFractionDigits: 1}) + " t";
-                document.getElementById('kpiVias').innerText = totalVias.toLocaleString('pt-BR');
-                document.getElementById('kpiRemocoes').innerText = totalRemocoes.toLocaleString('pt-BR');
+                // Atualizar DOM (métricas e listas) com valores corrigidos
+                // ARREDONDAMENTO: três primeiros cards exibidos como inteiros, média com uma casa decimal
+                document.getElementById('kpiPeso').innerText = Math.round(totalPeso).toLocaleString('pt-BR') + " t";
+                document.getElementById('kpiVias').innerText = Math.round(totalVias).toLocaleString('pt-BR');
+                document.getElementById('kpiRemocoes').innerText = Math.round(totalRemocoes).toLocaleString('pt-BR');
                 
                 const media = totalVias > 0 ? (totalPeso / totalVias) : 0;
                 document.getElementById('kpiMedia').innerText = media.toLocaleString('pt-BR', {maximumFractionDigits: 1});
@@ -314,7 +326,7 @@
                         <li class="mb-2">
                             <div class="flex justify-between text-sm mb-1">
                                 <span class="font-semibold text-slate-700">${index + 1}. ${item[0]}</span>
-                                <span class="font-bold text-slate-900">${item[1].toLocaleString('pt-BR', {maximumFractionDigits: 0})} t</span>
+                                <span class="font-bold text-slate-900">${Math.round(item[1]).toLocaleString('pt-BR')} t</span>
                             </div>
                             <div class="w-full bg-slate-100 rounded-full h-2">
                                 <div class="bg-blue-600 h-2 rounded-full" style="width: ${perc}%"></div>
@@ -324,9 +336,9 @@
                 });
 
                 document.getElementById('hotspotName').innerText = hotspot[0];
-                document.getElementById('hotspotValue').innerText = hotspot[1].toLocaleString('pt-BR', {maximumFractionDigits: 1}) + " t";
+                document.getElementById('hotspotValue').innerText = Math.round(hotspot[1]).toLocaleString('pt-BR') + " t";
 
-                // Gerar Texto
+                // Gerar Texto com valores corrigidos
                 generateText(totalPeso, totalVias, sortedMunicipios, hotspot, minDate, maxDate);
 
                 // Trocar telas
@@ -356,22 +368,23 @@
             const dFim = maxDate ? formatDate(maxDate) : 'atual';
             const city1 = municipios[0] ? municipios[0][0] : "Região Metropolitana";
             const city2 = municipios[1] ? municipios[1][0] : "diversos municípios";
-            const pesoFormatado = peso.toLocaleString('pt-BR', {maximumFractionDigits: 1});
+            // Arredondar para inteiro no texto também
+            const pesoFormatado = Math.round(peso).toLocaleString('pt-BR');
             
             // Certifica-se de que a média é calculada antes da formatação
             const mediaTonPorVia = (peso && vias) ? (peso / vias) : 0;
 
             const txt = `SUGESTÃO DE PAUTA
 
-TÍTULO: Operação de Ordem Urbana remove ${pesoFormatado} toneladas de barricadas e devolve ${vias.toLocaleString('pt-BR')} vias à população
+TÍTULO: Operação de Ordem Urbana remove ${pesoFormatado} toneladas de barricadas e devolve ${Math.round(vias).toLocaleString('pt-BR')} vias à população
 
-RIO DE JANEIRO — Entre *${dInicio}* e *${dFim}*, as forças de segurança realizaram uma série de intervenções focadas na desobstrução de vias públicas. O balanço consolidado até o momento aponta a retirada de ${pesoFormatado} toneladas de barricadas físicas, permitindo a retomada da circulação em ${vias.toLocaleString('pt-BR')} vias.
+RIO DE JANEIRO — Entre *${dInicio}* e *${dFim}*, as forças de segurança realizaram uma série de intervenções focadas na desobstrução de vias públicas. O balanço consolidado até o momento aponta a retirada de ${pesoFormatado} toneladas de barricadas físicas, permitindo a retomada da circulação em ${Math.round(vias).toLocaleString('pt-BR')} vias.
 
-O maior volume de remoções concentrou-se em *${city1}*, com destaque crítico para a localidade de *${hotspot[0]}*, que demandou maquinário pesado para remoção de ${hotspot[1].toLocaleString('pt-BR', {maximumFractionDigits: 0})} toneladas de entulho, vigas metálicas e vários outros obstáculos. A média de peso retirada por via desobstruída foi de ${mediaTonPorVia.toLocaleString('pt-BR', {maximumFractionDigits: 1})} toneladas, indicando a complexidade das estruturas removidas.
+O maior volume de remoções concentrou-se em *${city1}*, com destaque crítico para a localidade de *${hotspot[0]}*, que demandou maquinário pesado para remoção de ${Math.round(hotspot[1]).toLocaleString('pt-BR')} toneladas de entulho, vigas metálicas e vários outros obstáculos. A média de peso retirada por via desobstruída foi de ${mediaTonPorVia.toLocaleString('pt-BR', {maximumFractionDigits: 1})} toneladas, indicando a complexidade das estruturas removidas.
 
 *RESUMO DOS DADOS:*
 • Total de peso removido: ${pesoFormatado} toneladas
-• Vias liberadas: ${vias.toLocaleString('pt-BR')}
+• Vias liberadas: ${Math.round(vias).toLocaleString('pt-BR')}
 • Ponto focal: ${hotspot[0]} (${city1})`;
 
             document.getElementById('releaseText').innerText = txt;
